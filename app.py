@@ -136,7 +136,7 @@ def seccion_condimentos(prefijo):
     if total_cond > 0:
         st.info(f"💰 Total condimentos: ${total_cond:,.0f}")
     return costos_cond, total_cond
-    
+
 def seccion_utensilios(prefijo):
     st.subheader("🧴 Utensilios")
     costos_util = {}
@@ -156,15 +156,28 @@ def seccion_utensilios(prefijo):
         st.info(f"💰 Total utensilios: ${total_util:,.0f}")
     return costos_util, total_util
 
+HISTORIAL = "historial.json"
+
+def cargar_historial():
+    if os.path.exists(HISTORIAL):
+        with open(HISTORIAL, "r") as f:
+            return json.load(f)
+    return []
+
+def guardar_historial(historial):
+    with open(HISTORIAL, "w") as f:
+        json.dump(historial, f)
+
 st.title("🔥 Calculadora de Asados")
 st.caption("Controla tus costos y ganancias fácilmente")
 
 opcion = st.sidebar.selectbox("¿Qué quieres hacer?", [
     "Calcular precio por persona",
     "Calcular precio por evento",
-    "🌮 Calculadora de Tacos",
     "Mis recetas guardadas",
-    "Asesoría con IA"
+    "🌮 Calculadora de Tacos",
+    "📅 Historial de eventos",
+    "🤖Asesoría con IA"
 ])
 
 if opcion == "Calcular precio por persona":
@@ -366,6 +379,77 @@ elif opcion == "🌮 Calculadora de Tacos":
     col2.metric("Costo por porción", f"${costo_por_porcion:,.0f}")
     col3.metric(f"Precio por {tacos_por_porcion} tacos", f"${precio_porcion:,.0f}")
     col4.metric("Ganancia total", f"${ganancia_taco:,.0f}")
+
+elif opcion == "📅 Historial de eventos":
+    st.header("📅 Historial de eventos")
+
+    historial = cargar_historial()
+
+    st.subheader("➕ Registrar nuevo evento")
+    col1, col2 = st.columns(2)
+    with col1:
+        tipo_evento = st.selectbox("Tipo de evento", ["Asado al barril", "Tacos de birria", "Evento completo"])
+        fecha = st.date_input("Fecha del evento")
+    with col2:
+        descripcion = st.text_input("Descripción (opcional)")
+        personas_evento = st.number_input("Personas atendidas", min_value=1, value=8, step=1)
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        ingresos = st.number_input("Ingresos totales (COP)", min_value=0, value=0, step=1000)
+    with col2:
+        costos = st.number_input("Costos totales (COP)", min_value=0, value=0, step=1000)
+    with col3:
+        ganancia_evento = ingresos - costos
+        st.metric("Ganancia", f"${ganancia_evento:,.0f}")
+
+    if st.button("Registrar evento"):
+        if ingresos > 0:
+            historial.append({
+                "tipo": tipo_evento,
+                "fecha": str(fecha),
+                "descripcion": descripcion,
+                "personas": personas_evento,
+                "ingresos": ingresos,
+                "costos": costos,
+                "ganancia": ganancia_evento
+            })
+            guardar_historial(historial)
+            st.success("✓ Evento registrado")
+        else:
+            st.warning("Ingresa los ingresos del evento")
+
+    st.divider()
+    st.subheader("📋 Eventos registrados")
+
+    if len(historial) == 0:
+        st.info("No tienes eventos registrados todavía")
+    else:
+        total_ingresos = sum(e["ingresos"] for e in historial)
+        total_costos = sum(e["costos"] for e in historial)
+        total_ganancia = sum(e["ganancia"] for e in historial)
+        total_personas = sum(e["personas"] for e in historial)
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total ingresos", f"${total_ingresos:,.0f}")
+        col2.metric("Total costos", f"${total_costos:,.0f}")
+        col3.metric("Total ganancia", f"${total_ganancia:,.0f}")
+        col4.metric("Personas atendidas", total_personas)
+
+        st.divider()
+        for i, evento in enumerate(reversed(historial)):
+            with st.expander(f"📌 {evento['fecha']} — {evento['tipo']} — ${evento['ganancia']:,.0f}"):
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Ingresos", f"${evento['ingresos']:,.0f}")
+                col2.metric("Costos", f"${evento['costos']:,.0f}")
+                col3.metric("Ganancia", f"${evento['ganancia']:,.0f}")
+                st.write(f"👥 Personas: {evento['personas']}")
+                if evento['descripcion']:
+                    st.write(f"📝 {evento['descripcion']}")
+                if st.button("Eliminar", key=f"del_evento_{i}"):
+                    historial.pop(len(historial) - 1 - i)
+                    guardar_historial(historial)
+                    st.rerun()
 
 elif opcion == "Asesoría con IA":
     st.header("🤖 Asesoría con IA")
