@@ -136,7 +136,7 @@ def seccion_condimentos(prefijo):
     if total_cond > 0:
         st.info(f"💰 Total condimentos: ${total_cond:,.0f}")
     return costos_cond, total_cond
-
+    
 def seccion_utensilios(prefijo):
     st.subheader("🧴 Utensilios")
     costos_util = {}
@@ -162,6 +162,7 @@ st.caption("Controla tus costos y ganancias fácilmente")
 opcion = st.sidebar.selectbox("¿Qué quieres hacer?", [
     "Calcular precio por persona",
     "Calcular precio por evento",
+    "🌮 Calculadora de Tacos",
     "Mis recetas guardadas",
     "Asesoría con IA"
 ])
@@ -260,6 +261,111 @@ elif opcion == "Mis recetas guardadas":
                     del recetas[nombre]
                     guardar_recetas(recetas)
                     st.rerun()
+
+elif opcion == "🌮 Calculadora de Tacos":
+    st.header("🌮 Tacos de Birria")
+    st.caption("Calcula el costo y precio de tus tacos")
+
+    st.subheader("🥩 Carnes")
+    carnes_taco = {}
+    total_carnes_taco = 0
+    for carne in ["Falda de res", "Pecho de res", "Cañón de cerdo"]:
+        incluir = st.checkbox(carne, key=f"taco_carne_{carne}")
+        if incluir:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                cantidad = st.number_input("Cantidad", min_value=0.1, value=1.0, step=0.1, key=f"taco_cant_{carne}")
+            with col2:
+                unidad = st.selectbox("Unidad", ["kg", "gramos"], key=f"taco_uni_{carne}")
+            with col3:
+                precio = st.number_input("Precio COP", min_value=0, value=20000, step=1000, key=f"taco_precio_{carne}")
+            costo = calcular_costo(cantidad, unidad, precio)
+            carnes_taco[carne] = costo
+            total_carnes_taco += costo
+    if total_carnes_taco > 0:
+        st.info(f"💰 Total carnes: ${total_carnes_taco:,.0f}")
+
+    st.subheader("🥬 Legumbres y frescos")
+    legumbres_taco = {}
+    total_legumbres = 0
+    for leg in ["Tomate", "Cebolla", "Ajo", "Ají", "Aguacate", "Perejil", "Piña", "Limones", "Cebolla morada"]:
+        incluir = st.checkbox(leg, key=f"taco_leg_{leg}")
+        if incluir:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                cantidad = st.number_input("Cantidad", min_value=0.1, value=1.0, step=0.1, key=f"taco_leg_cant_{leg}")
+            with col2:
+                unidad = st.selectbox("Unidad", ["unidad", "kg", "gramos"], key=f"taco_leg_uni_{leg}")
+            with col3:
+                precio = st.number_input("Precio COP", min_value=0, value=2000, step=500, key=f"taco_leg_precio_{leg}")
+            costo = calcular_costo(cantidad, unidad, precio)
+            legumbres_taco[leg] = costo
+            total_legumbres += costo
+    if total_legumbres > 0:
+        st.info(f"💰 Total legumbres: ${total_legumbres:,.0f}")
+
+    st.subheader("🧂 Especias")
+    especias_taco = {}
+    total_especias = 0
+    for esp in ["Orégano", "Tomillo", "Laurel", "Sal", "Pimienta"]:
+        incluir = st.checkbox(esp, key=f"taco_esp_{esp}")
+        if incluir:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                cantidad = st.number_input("Cantidad", min_value=0.1, value=1.0, step=0.1, key=f"taco_esp_cant_{esp}")
+            with col2:
+                unidad = st.selectbox("Unidad", ["gramos", "kg", "unidad"], key=f"taco_esp_uni_{esp}")
+            with col3:
+                precio = st.number_input("Precio COP", min_value=0, value=1000, step=500, key=f"taco_esp_precio_{esp}")
+            costo = calcular_costo(cantidad, unidad, precio)
+            especias_taco[esp] = costo
+            total_especias += costo
+    if total_especias > 0:
+        st.info(f"💰 Total especias: ${total_especias:,.0f}")
+
+    st.subheader("🧀 Otros ingredientes")
+    otros_taco = {}
+    total_otros_taco = 0
+    for otro in ["Queso mozzarella", "Tortillas", "Agua"]:
+        incluir = st.checkbox(otro, key=f"taco_otro_{otro}")
+        if incluir:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                cantidad = st.number_input("Cantidad", min_value=0.1, value=1.0, step=0.1, key=f"taco_otro_cant_{otro}")
+            with col2:
+                if otro == "Agua":
+                    unidad = st.selectbox("Unidad", ["litro"], key=f"taco_otro_uni_{otro}")
+                elif otro == "Tortillas":
+                    unidad = st.selectbox("Unidad", ["unidad", "paquete"], key=f"taco_otro_uni_{otro}")
+                else:
+                    unidad = st.selectbox("Unidad", ["kg", "gramos"], key=f"taco_otro_uni_{otro}")
+            with col3:
+                precio = st.number_input("Precio COP", min_value=0, value=5000, step=500, key=f"taco_otro_precio_{otro}")
+            costo = calcular_costo(cantidad, unidad, precio)
+            otros_taco[otro] = costo
+            total_otros_taco += costo
+    if total_otros_taco > 0:
+        st.info(f"💰 Total otros: ${total_otros_taco:,.0f}")
+
+    st.subheader("⚙️ Logística")
+    gas = st.number_input("Gas (COP)", min_value=0, value=10000, step=1000)
+    transporte_taco = st.number_input("Transporte (COP)", min_value=0, value=20000, step=1000)
+    tacos_por_porcion = st.selectbox("Tacos por porción", [2, 3])
+    total_tacos = st.number_input("Total de tacos a preparar", min_value=1, value=30, step=1)
+    margen_taco = st.slider("Margen de ganancia (%)", min_value=10, max_value=100, value=40)
+
+    costo_total_taco = total_carnes_taco + total_legumbres + total_especias + total_otros_taco + gas + transporte_taco
+    porciones = total_tacos / tacos_por_porcion
+    costo_por_porcion = costo_total_taco / porciones if porciones > 0 else 0
+    precio_porcion = costo_por_porcion * (1 + margen_taco / 100)
+    ganancia_taco = (precio_porcion - costo_por_porcion) * porciones
+
+    st.divider()
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Costo total", f"${costo_total_taco:,.0f}")
+    col2.metric("Costo por porción", f"${costo_por_porcion:,.0f}")
+    col3.metric(f"Precio por {tacos_por_porcion} tacos", f"${precio_porcion:,.0f}")
+    col4.metric("Ganancia total", f"${ganancia_taco:,.0f}")
 
 elif opcion == "Asesoría con IA":
     st.header("🤖 Asesoría con IA")
