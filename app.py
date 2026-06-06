@@ -30,7 +30,8 @@ ACOMPANANTES = [
     "Chimichurri",
     "Papa hervida",
     "Mazorca",
-    "Ensalada"
+    "Ensalada",
+    "Arepas"
 ]
 
 CONDIMENTOS = [
@@ -41,6 +42,17 @@ CONDIMENTOS = [
     "Ajos",
     "Cebolla",
     "Pimentón"
+]
+
+UTENSILIOS = [
+    "Contenedores J1",
+    "Tenedores",
+    "Palillos para dientes",
+    "Copas de salsa",
+    "Papel parafinado",
+    "Bolsas",
+    "Carbon"
+    
 ]
 
 def calcular_costo(cantidad, unidad, precio_unit):
@@ -125,6 +137,25 @@ def seccion_condimentos(prefijo):
         st.info(f"💰 Total condimentos: ${total_cond:,.0f}")
     return costos_cond, total_cond
 
+def seccion_utensilios(prefijo):
+    st.subheader("🧴 Utensilios")
+    costos_util = {}
+    total_util = 0
+    for util in UTENSILIOS:
+        incluir = st.checkbox(util, key=f"{prefijo}_util_check_{util}")
+        if incluir:
+            col1, col2 = st.columns(2)
+            with col1:
+                cantidad = st.number_input("Cantidad", min_value=1, value=10, step=1, key=f"{prefijo}_util_cant_{util}")
+            with col2:
+                precio_unit = st.number_input("Precio unidad COP", min_value=0, value=500, step=100, key=f"{prefijo}_util_precio_{util}")
+            costo = cantidad * precio_unit
+            costos_util[util] = {"cantidad": cantidad, "precio": precio_unit, "costo": costo}
+            total_util += costo
+    if total_util > 0:
+        st.info(f"💰 Total utensilios: ${total_util:,.0f}")
+    return costos_util, total_util
+
 st.title("🔥 Calculadora de Asados")
 st.caption("Controla tus costos y ganancias fácilmente")
 
@@ -140,18 +171,19 @@ if opcion == "Calcular precio por persona":
     costos_cortes, total_carne = seccion_cortes("pp")
     costos_acomp, total_acomp = seccion_acompanantes("pp")
     costos_cond, total_cond = seccion_condimentos("pp")
-
+    costos_util, total_util = seccion_utensilios("pp")
     st.subheader("🚗 Logística")
     transporte = st.number_input("Transporte (COP)", min_value=0, value=20000, step=1000)
     otros = st.number_input("Otros gastos (COP)", min_value=0, value=10000, step=1000)
     personas = st.number_input("Número de personas", min_value=1, value=8, step=1)
     margen = st.slider("Margen de ganancia (%)", min_value=10, max_value=100, value=30)
 
-    costo_total = total_carne + total_acomp + total_cond + transporte + otros
+    
+    costo_total = total_carne + total_acomp + total_cond + total_util + transporte + otros
     costo_por_persona = costo_total / personas
     precio_venta = costo_por_persona * (1 + margen / 100)
     ganancia_total = (precio_venta - costo_por_persona) * personas
-
+   
     st.divider()
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Costo total", f"${costo_total:,.0f}")
@@ -190,16 +222,16 @@ elif opcion == "Calcular precio por evento":
     horas = st.number_input("Horas de trabajo", min_value=1, value=4, step=1)
     valor_hora = st.number_input("Valor hora de trabajo (COP)", min_value=0, value=25000, step=1000)
     margen = st.slider("Margen de ganancia (%)", min_value=10, max_value=100, value=30)
-
-    costo_total = total_carne + total_acomp + total_cond + transporte + otros + (horas * valor_hora)
-    precio_evento = costo_total * (1 + margen / 100)
-    ganancia = precio_evento - costo_total
+   
+    costo_total = total_carne + total_acomp + total_cond + total_util + transporte + otros
+    costo_por_persona = costo_total / personas
+    precio_venta = costo_por_persona * (1 + margen / 100)
+    ganancia_total = (precio_venta - costo_por_persona) * personas
 
     st.divider()
     col1, col2, col3 = st.columns(3)
     col1.metric("Costo total", f"${costo_total:,.0f}")
     col2.metric("Precio sugerido", f"${precio_evento:,.0f}")
-    col3.metric("Tu ganancia", f"${ganancia:,.0f}")
 
 elif opcion == "Mis recetas guardadas":
     st.header("📋 Mis recetas")
