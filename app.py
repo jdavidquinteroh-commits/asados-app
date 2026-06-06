@@ -43,6 +43,12 @@ CONDIMENTOS = [
     "Pimentón"
 ]
 
+def calcular_costo(cantidad, unidad, precio_unit):
+    if unidad == "gramos":
+        return (cantidad / 1000) * precio_unit
+    else:
+        return cantidad * precio_unit
+
 def cargar_recetas():
     if os.path.exists(ARCHIVO):
         with open(ARCHIVO, "r") as f:
@@ -64,21 +70,14 @@ def seccion_cortes(prefijo):
             with col1:
                 cantidad = st.number_input("Cantidad", min_value=0.1, value=1.0, step=0.1, key=f"{prefijo}_cant_{corte}")
             with col2:
-                unidad = st.selectbox("Unidad", ["kg", "gramos", "unidad"], key=f"{prefijo}_uni_{corte}")
+                unidad = st.selectbox("Unidad", ["kg","gramos", "unidad"], key=f"{prefijo}_uni_{corte}")
             with col3:
                 precio_unit = st.number_input("Precio COP", min_value=0, value=20000, step=1000, key=f"{prefijo}_precio_{corte}")
-
-            if unidad == "gramos":
-                costo = (cantidad / 1000) * precio_unit
-            else:
-                costo = cantidad * precio_unit
-
+            costo = calcular_costo(cantidad, unidad, precio_unit)
             costos_cortes[corte] = {"cantidad": cantidad, "unidad": unidad, "precio": precio_unit, "costo": costo}
             total_carne += costo
-
     if total_carne > 0:
         st.info(f"💰 Total carnes: ${total_carne:,.0f}")
-
     return costos_cortes, total_carne
 
 def seccion_acompanantes(prefijo):
@@ -95,18 +94,11 @@ def seccion_acompanantes(prefijo):
                 unidad = st.selectbox("Unidad", ["unidad", "kg", "gramos"], key=f"{prefijo}_acomp_uni_{acomp}")
             with col3:
                 precio_unit = st.number_input("Precio COP", min_value=0, value=5000, step=500, key=f"{prefijo}_acomp_precio_{acomp}")
-
-            if unidad == "gramos":
-                costo = (cantidad / 1000) * precio_unit
-            else:
-                costo = cantidad * precio_unit
-
+            costo = calcular_costo(cantidad, unidad, precio_unit)
             costos_acomp[acomp] = {"cantidad": cantidad, "unidad": unidad, "precio": precio_unit, "costo": costo}
             total_acomp += costo
-
     if total_acomp > 0:
         st.info(f"💰 Total acompañantes: ${total_acomp:,.0f}")
-
     return costos_acomp, total_acomp
 
 def seccion_condimentos(prefijo):
@@ -126,18 +118,11 @@ def seccion_condimentos(prefijo):
                     unidad = st.selectbox("Unidad", ["gramos", "kg", "unidad"], key=f"{prefijo}_cond_uni_{cond}")
             with col3:
                 precio_unit = st.number_input("Precio COP", min_value=0, value=2000, step=500, key=f"{prefijo}_cond_precio_{cond}")
-
-            if unidad == "gramos":
-                costo = (cantidad / 1000) * precio_unit
-            else:
-                costo = cantidad * precio_unit
-
+            costo = calcular_costo(cantidad, unidad, precio_unit)
             costos_cond[cond] = {"cantidad": cantidad, "unidad": unidad, "precio": precio_unit, "costo": costo}
             total_cond += costo
-
     if total_cond > 0:
         st.info(f"💰 Total condimentos: ${total_cond:,.0f}")
-
     return costos_cond, total_cond
 
 st.title("🔥 Calculadora de Asados")
@@ -152,7 +137,6 @@ opcion = st.sidebar.selectbox("¿Qué quieres hacer?", [
 
 if opcion == "Calcular precio por persona":
     st.header("👤 Precio por persona")
-
     costos_cortes, total_carne = seccion_cortes("pp")
     costos_acomp, total_acomp = seccion_acompanantes("pp")
     costos_cond, total_cond = seccion_condimentos("pp")
@@ -196,7 +180,6 @@ if opcion == "Calcular precio por persona":
 
 elif opcion == "Calcular precio por evento":
     st.header("🎉 Precio por evento")
-
     costos_cortes, total_carne = seccion_cortes("pe")
     costos_acomp, total_acomp = seccion_acompanantes("pe")
     costos_cond, total_cond = seccion_condimentos("pe")
@@ -221,7 +204,6 @@ elif opcion == "Calcular precio por evento":
 elif opcion == "Mis recetas guardadas":
     st.header("📋 Mis recetas")
     recetas = cargar_recetas()
-
     if len(recetas) == 0:
         st.info("No tienes recetas guardadas todavía")
     else:
@@ -232,19 +214,16 @@ elif opcion == "Mis recetas guardadas":
                     for corte, info in datos["cortes"].items():
                         if isinstance(info, dict):
                             st.write(f"- {corte}: {info['cantidad']} {info['unidad']} — ${info['costo']:,.0f}")
-
                 total_carne = sum(v["costo"] if isinstance(v, dict) else v for v in datos.get("cortes", {}).values())
                 total_acomp = sum(v["costo"] if isinstance(v, dict) else v for v in datos.get("acompanantes", {}).values())
                 total_cond = sum(v["costo"] if isinstance(v, dict) else v for v in datos.get("condimentos", {}).values())
                 costo = total_carne + total_acomp + total_cond + datos.get("transporte", 0) + datos.get("otros", 0)
                 precio = (costo / datos["personas"]) * (1 + datos["margen"] / 100)
                 ganancia = (precio - costo / datos["personas"]) * datos["personas"]
-
                 col1, col2, col3 = st.columns(3)
                 col1.metric("Personas", datos["personas"])
                 col2.metric("Precio por persona", f"${precio:,.0f}")
                 col3.metric("Ganancia", f"${ganancia:,.0f}")
-
                 if st.button(f"Eliminar", key=f"del_{nombre}"):
                     del recetas[nombre]
                     guardar_recetas(recetas)
