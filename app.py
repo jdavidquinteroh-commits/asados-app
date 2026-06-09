@@ -565,7 +565,7 @@ if st.button("✍️ Corregir texto con IA"):
             st.write(nota_cliente)
     else:
         st.warning("Escribe algo primero")
-        
+
     subtotal = costo_base + sum(i["cantidad"] * i["precio"] for i in items)
     descuento_valor = subtotal * (descuento / 100)
     total = subtotal - descuento_valor
