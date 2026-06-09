@@ -172,6 +172,46 @@ col1, col2, col3 = st.columns([1,2,1])
 with col2:
     st.image("logo.png", width=300)   
 
+st.markdown("""
+    <style>
+        .stApp {
+            background-color: #F5F0E8;
+        }
+        .stSidebar {
+            background-color: #FFFFFF;
+            border-right: 3px solid #FF6B00;
+        }
+        h1, h2, h3 {
+            color: #FF6B00 !important;
+        }
+        .stButton > button {
+            background-color: #FF6B00;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            width: 100%;
+        }
+        .stButton > button:hover {
+            background-color: #cc5500;
+            color: white;
+        }
+        [data-testid="stMetricValue"] {
+            color: #FF6B00 !important;
+            font-weight: bold;
+        }
+        [data-testid="stMetricLabel"] {
+            color: #666666 !important;
+        }
+        .stInfo {
+            border-left: 3px solid #FF6B00;
+        }
+        hr {
+            border-color: #FF6B00;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 st.markdown("<h1 style='text-align: center; color: #C9A84C;'>🔥 BARRIL AND GRILL 🔥</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: #888888;'>Calculadora de costos y ganancias</p>", unsafe_allow_html=True)
 
