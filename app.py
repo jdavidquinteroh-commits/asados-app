@@ -4,6 +4,13 @@ from groq import Groq
 from dotenv import load_dotenv
 import json
 
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+import io
+
 load_dotenv()
 
 try:
@@ -221,7 +228,8 @@ opcion = st.sidebar.selectbox("¿Qué quieres hacer?", [
     "Mis recetas guardadas",
     "🌮 Calculadora de Tacos",
     "📅 Historial de eventos",
-    "🤖Asesoría con IA"
+    "📄 Generar presupuesto PDF",
+    "Asesoría con IA"
 ])
 
 if opcion == "Calcular precio por persona":
@@ -495,6 +503,213 @@ elif opcion == "📅 Historial de eventos":
                     guardar_historial(historial)
                     st.rerun()
 
+elif opcion == "📄 Generar presupuesto PDF":
+    st.header("📄 Generar presupuesto")
+    st.caption("Crea un presupuesto profesional para tu cliente")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        nombre_cliente = st.text_input("Nombre del cliente")
+        telefono_cliente = st.text_input("Teléfono del cliente")
+        correo_cliente = st.text_input("Correo electrónico del cliente")
+        fecha_evento = st.date_input("Fecha del evento")
+    with col2:
+        tipo_servicio = st.selectbox("Tipo de servicio", [
+            "Asado al barril",
+            "Tacos de birria",
+            "Asado al barril + Tacos",
+            "Evento completo"
+        ])
+        personas_presupuesto = st.number_input("Número de personas", min_value=1, value=10, step=1)
+        lugar_evento = st.text_input("Lugar del evento")
+
+    st.subheader("💰 Detalles del presupuesto")
+    
+    st.write("**Servicios incluidos:**")
+    items = []
+    
+    agregar_item = st.checkbox("Agregar item personalizado")
+    if agregar_item:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            item_nombre = st.text_input("Descripción del item")
+        with col2:
+            item_cantidad = st.number_input("Cantidad", min_value=1, value=1)
+        with col3:
+            item_precio = st.number_input("Precio unitario COP", min_value=0, value=10000, step=1000)
+        if item_nombre:
+            items.append({"nombre": item_nombre, "cantidad": item_cantidad, "precio": item_precio})
+
+    costo_base = st.number_input("Costo base del servicio (COP)", min_value=0, value=200000, step=10000)
+    descuento = st.slider("Descuento (%)", min_value=0, max_value=30, value=0)
+    nota_cliente = st.text_area("Nota para el cliente (opcional)")
+
+if st.button("✍️ Corregir texto con IA"):
+    if nota_cliente.strip():
+        with st.spinner("Corrigiendo..."):
+            respuesta = cliente.chat.completions.create(
+                model="llama-3.1-8b-instant",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Eres un corrector ortográfico. Corrige tildes, puntuación y ortografía del texto que te den. Devuelve SOLO el texto corregido, sin explicaciones ni comentarios."
+                    },
+                    {
+                        "role": "user",
+                        "content": nota_cliente
+                    }
+                ]
+            )
+            nota_cliente = respuesta.choices[0].message.content
+            st.success("✓ Texto corregido")
+            st.write(nota_cliente)
+    else:
+        st.warning("Escribe algo primero")
+        
+    subtotal = costo_base + sum(i["cantidad"] * i["precio"] for i in items)
+    descuento_valor = subtotal * (descuento / 100)
+    total = subtotal - descuento_valor
+
+    st.divider()
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Subtotal", f"${subtotal:,.0f}")
+    col2.metric("Descuento", f"${descuento_valor:,.0f}")
+    col3.metric("Total", f"${total:,.0f}")
+
+    if st.button("📄 Generar PDF"):
+        if not nombre_cliente:
+            st.warning("Escribe el nombre del cliente")
+        else:
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=letter,
+                                   rightMargin=inch*0.75, leftMargin=inch*0.75,
+                                   topMargin=inch*0.75, bottomMargin=inch*0.75)
+
+            styles = getSampleStyleSheet()
+            elementos = []
+
+            estilo_titulo = ParagraphStyle(
+                'titulo',
+                parent=styles['Heading1'],
+                fontSize=24,
+                textColor=colors.HexColor('#FF6B00'),
+                spaceAfter=6,
+                alignment=1
+            )
+            estilo_subtitulo = ParagraphStyle(
+                'subtitulo',
+                parent=styles['Normal'],
+                fontSize=11,
+                textColor=colors.HexColor('#666666'),
+                spaceAfter=4,
+                alignment=1
+            )
+            estilo_normal = ParagraphStyle(
+                'normal',
+                parent=styles['Normal'],
+                fontSize=10,
+                spaceAfter=4
+            )
+            estilo_bold = ParagraphStyle(
+                'bold',
+                parent=styles['Normal'],
+                fontSize=10,
+                fontName='Helvetica-Bold',
+                spaceAfter=4
+            )
+
+            try:
+                elementos.append(RLImage("logo.png", width=1.5*inch, height=1.5*inch))
+            except:
+                pass
+
+            elementos.append(Paragraph("BARRIL AND GRILL", estilo_titulo))
+            elementos.append(Paragraph("Marinados · Ahumados · Calidad", estilo_subtitulo))
+            elementos.append(Spacer(1, 0.2*inch))
+
+            datos_empresa = [
+                ["📞 WhatsApp:", "3245872010"],
+                ["📍 Ciudad:", "EL RETIRO"],
+                ["📅 Fecha presupuesto:", str(fecha_evento)],
+            ]
+            tabla_empresa = Table(datos_empresa, colWidths=[2*inch, 4*inch])
+            tabla_empresa.setStyle(TableStyle([
+                ('FONTSIZE', (0,0), (-1,-1), 9),
+                ('TEXTCOLOR', (0,0), (0,-1), colors.HexColor('#FF6B00')),
+                ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+            ]))
+            elementos.append(tabla_empresa)
+            elementos.append(Spacer(1, 0.2*inch))
+
+            elementos.append(Paragraph("DATOS DEL CLIENTE", ParagraphStyle('sec', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#FF6B00'))))
+            
+            datos_cliente = [
+                ["Cliente:", nombre_cliente],
+                ["Teléfono:", telefono_cliente],
+                ["Fecha del evento:", str(fecha_evento)],
+                ["Lugar:", lugar_evento],
+                ["Número de personas:", str(personas_presupuesto)],
+                ["Servicio:", tipo_servicio],
+            ]
+            tabla_cliente = Table(datos_cliente, colWidths=[2*inch, 4*inch])
+            tabla_cliente.setStyle(TableStyle([
+                ('FONTSIZE', (0,0), (-1,-1), 10),
+                ('TEXTCOLOR', (0,0), (0,-1), colors.HexColor('#333333')),
+                ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+                ('ROWBACKGROUNDS', (0,0), (-1,-1), [colors.HexColor('#F5F0E8'), colors.white]),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#DDDDDD')),
+                ('PADDING', (0,0), (-1,-1), 6),
+            ]))
+            elementos.append(tabla_cliente)
+            elementos.append(Spacer(1, 0.2*inch))
+
+            elementos.append(Paragraph("DETALLE DEL PRESUPUESTO", ParagraphStyle('sec', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#FF6B00'))))
+
+            datos_tabla = [["Descripción", "Cantidad", "Precio unit.", "Total"]]
+            datos_tabla.append([tipo_servicio, "1", f"${costo_base:,.0f}", f"${costo_base:,.0f}"])
+            for item in items:
+                total_item = item['cantidad'] * item['precio']
+                datos_tabla.append([item['nombre'], str(item['cantidad']), f"${item['precio']:,.0f}", f"${total_item:,.0f}"])
+            datos_tabla.append(["", "", "Subtotal:", f"${subtotal:,.0f}"])
+            if descuento > 0:
+                datos_tabla.append(["", "", f"Descuento ({descuento}%):", f"-${descuento_valor:,.0f}"])
+            datos_tabla.append(["", "", "TOTAL:", f"${total:,.0f}"])
+
+            tabla_presupuesto = Table(datos_tabla, colWidths=[3*inch, 1*inch, 1.5*inch, 1.5*inch])
+            tabla_presupuesto.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF6B00')),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0,0), (-1,-1), 10),
+                ('GRID', (0,0), (-1,-2), 0.5, colors.HexColor('#DDDDDD')),
+                ('ROWBACKGROUNDS', (0,1), (-1,-3), [colors.white, colors.HexColor('#F5F0E8')]),
+                ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
+                ('TEXTCOLOR', (2,-1), (-1,-1), colors.HexColor('#FF6B00')),
+                ('FONTSIZE', (0,-1), (-1,-1), 12),
+                ('PADDING', (0,0), (-1,-1), 8),
+            ]))
+            elementos.append(tabla_presupuesto)
+            elementos.append(Spacer(1, 0.2*inch))
+
+            if nota_cliente:
+                elementos.append(Paragraph("NOTAS:", estilo_bold))
+                elementos.append(Paragraph(nota_cliente, estilo_normal))
+                elementos.append(Spacer(1, 0.1*inch))
+
+            elementos.append(Spacer(1, 0.3*inch))
+            elementos.append(Paragraph("¡Gracias por confiar en Barril And Grill!", ParagraphStyle('gracias', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor('#FF6B00'), alignment=1)))
+            elementos.append(Paragraph("Sabor Real · Fuego Lento · Marinados · Ahumados · Calidad", ParagraphStyle('slogan', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#888888'), alignment=1)))
+
+            doc.build(elementos)
+            buffer.seek(0)
+
+            st.success("✓ PDF generado exitosamente")
+            st.download_button(
+                label="⬇️ Descargar presupuesto PDF",
+                data=buffer,
+                file_name=f"presupuesto_{nombre_cliente}_{fecha_evento}.pdf",
+                mime="application/pdf"
+            )
 elif opcion == "Asesoría con IA":
     st.header("🤖 Asesoría con IA")
     st.caption("Pregúntale a la IA sobre precios, estrategias y consejos para tu negocio")
