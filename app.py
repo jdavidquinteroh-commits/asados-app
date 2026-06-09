@@ -168,8 +168,12 @@ def guardar_historial(historial):
     with open(HISTORIAL, "w") as f:
         json.dump(historial, f)
 
-st.title("🔥 Calculadora de Asados")
-st.caption("Controla tus costos y ganancias fácilmente")
+col1, col2, col3 = st.columns([1,2,1])
+with col2:
+    st.image("logo.png", width=300)   
+
+st.markdown("<h1 style='text-align: center; color: #C9A84C;'>🔥 BARRIL AND GRILL 🔥</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #888888;'>Calculadora de costos y ganancias</p>", unsafe_allow_html=True)
 
 opcion = st.sidebar.selectbox("¿Qué quieres hacer?", [
     "Calcular precio por persona",
