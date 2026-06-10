@@ -3,7 +3,6 @@ import os
 from groq import Groq
 from dotenv import load_dotenv
 import json
-
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
@@ -21,6 +20,7 @@ except:
 cliente = Groq(api_key=api_key)
 
 ARCHIVO = "recetas.json"
+HISTORIAL = "historial.json"
 
 CORTES = [
     "Bondiola de cerdo",
@@ -58,8 +58,9 @@ UTENSILIOS = [
     "Copas de salsa",
     "Papel parafinado",
     "Bolsas",
-    "Carbon"
-    
+    "Guantes desechables",
+    "Carbon",
+    "servilletas"
 ]
 
 def calcular_costo(cantidad, unidad, precio_unit):
@@ -78,6 +79,16 @@ def guardar_recetas(recetas):
     with open(ARCHIVO, "w") as f:
         json.dump(recetas, f)
 
+def cargar_historial():
+    if os.path.exists(HISTORIAL):
+        with open(HISTORIAL, "r") as f:
+            return json.load(f)
+    return []
+
+def guardar_historial(historial):
+    with open(HISTORIAL, "w") as f:
+        json.dump(historial, f)
+
 def seccion_cortes(prefijo):
     st.subheader("🥩 Cortes de carne")
     costos_cortes = {}
@@ -89,7 +100,7 @@ def seccion_cortes(prefijo):
             with col1:
                 cantidad = st.number_input("Cantidad", min_value=0.1, value=1.0, step=0.1, key=f"{prefijo}_cant_{corte}")
             with col2:
-                unidad = st.selectbox("Unidad", ["kg","gramos", "unidad"], key=f"{prefijo}_uni_{corte}")
+                unidad = st.selectbox("Unidad", ["kg", "gramos", "unidad"], key=f"{prefijo}_uni_{corte}")
             with col3:
                 precio_unit = st.number_input("Precio COP", min_value=0, value=20000, step=1000, key=f"{prefijo}_precio_{corte}")
             costo = calcular_costo(cantidad, unidad, precio_unit)
@@ -163,64 +174,26 @@ def seccion_utensilios(prefijo):
         st.info(f"💰 Total utensilios: ${total_util:,.0f}")
     return costos_util, total_util
 
-HISTORIAL = "historial.json"
-
-def cargar_historial():
-    if os.path.exists(HISTORIAL):
-        with open(HISTORIAL, "r") as f:
-            return json.load(f)
-    return []
-
-def guardar_historial(historial):
-    with open(HISTORIAL, "w") as f:
-        json.dump(historial, f)
-
-col1, col2, col3 = st.columns([1,2,1])
-with col2:
-    st.image("logo.png", width=300)   
-
 st.markdown("""
     <style>
-        .stApp {
-            background-color: #F5F0E8;
-        }
-        .stSidebar {
-            background-color: #FFFFFF;
-            border-right: 3px solid #FF6B00;
-        }
-        h1, h2, h3 {
-            color: #FF6B00 !important;
-        }
-        .stButton > button {
-            background-color: #FF6B00;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-weight: bold;
-            width: 100%;
-        }
-        .stButton > button:hover {
-            background-color: #cc5500;
-            color: white;
-        }
-        [data-testid="stMetricValue"] {
-            color: #FF6B00 !important;
-            font-weight: bold;
-        }
-        [data-testid="stMetricLabel"] {
-            color: #666666 !important;
-        }
-        .stInfo {
-            border-left: 3px solid #FF6B00;
-        }
-        hr {
-            border-color: #FF6B00;
-        }
+        .stApp { background-color: #F5F0E8; }
+        .stSidebar { background-color: #FFFFFF; border-right: 3px solid #FF6B00; }
+        h1, h2, h3 { color: #FF6B00 !important; }
+        .stButton > button { background-color: #FF6B00; color: white; border: none; border-radius: 6px; font-weight: bold; width: 100%; }
+        .stButton > button:hover { background-color: #cc5500; color: white; }
+        [data-testid="stMetricValue"] { color: #FF6B00 !important; font-weight: bold; }
+        [data-testid="stMetricLabel"] { color: #666666 !important; }
+        .stInfo { border-left: 3px solid #FF6B00; }
+        hr { border-color: #FF6B00; }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align: center; color: #C9A84C;'>🔥 BARRIL AND GRILL 🔥</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #888888;'>Calculadora de costos y ganancias</p>", unsafe_allow_html=True)
+col1, col2, col3 = st.columns([1,2,1])
+with col2:
+    st.image("logo.png", width=350)
+
+st.title("🔥 Barril And Grill")
+st.caption("Calculadora de costos y ganancias")
 
 opcion = st.sidebar.selectbox("¿Qué quieres hacer?", [
     "Calcular precio por persona",
@@ -243,33 +216,24 @@ if opcion == "Calcular precio por persona":
     otros = st.number_input("Otros gastos (COP)", min_value=0, value=10000, step=1000)
     personas = st.number_input("Número de personas", min_value=1, value=8, step=1)
     margen = st.slider("Margen de ganancia (%)", min_value=10, max_value=100, value=30)
-
-    
     costo_total = total_carne + total_acomp + total_cond + total_util + transporte + otros
     costo_por_persona = costo_total / personas
     precio_venta = costo_por_persona * (1 + margen / 100)
     ganancia_total = (precio_venta - costo_por_persona) * personas
-   
     st.divider()
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Costo total", f"${costo_total:,.0f}")
     col2.metric("Costo por persona", f"${costo_por_persona:,.0f}")
     col3.metric("Precio sugerido", f"${precio_venta:,.0f}")
     col4.metric("Ganancia total", f"${ganancia_total:,.0f}")
-
     nombre_receta = st.text_input("Nombre para guardar esta receta")
     if st.button("Guardar receta"):
         if nombre_receta.strip():
             recetas = cargar_recetas()
             recetas[nombre_receta] = {
-                "cortes": costos_cortes,
-                "acompanantes": costos_acomp,
-                "condimentos": costos_cond,
-                "transporte": transporte,
-                "otros": otros,
-                "personas": personas,
-                "margen": margen,
-                "tipo": "por_persona"
+                "cortes": costos_cortes, "acompanantes": costos_acomp,
+                "condimentos": costos_cond, "transporte": transporte,
+                "otros": otros, "personas": personas, "margen": margen, "tipo": "por_persona"
             }
             guardar_recetas(recetas)
             st.success(f"✓ Receta '{nombre_receta}' guardada")
@@ -281,23 +245,21 @@ elif opcion == "Calcular precio por evento":
     costos_cortes, total_carne = seccion_cortes("pe")
     costos_acomp, total_acomp = seccion_acompanantes("pe")
     costos_cond, total_cond = seccion_condimentos("pe")
-
+    costos_util, total_util = seccion_utensilios("pe")
     st.subheader("🚗 Logística y tiempo")
     transporte = st.number_input("Transporte (COP)", min_value=0, value=30000, step=1000)
     otros = st.number_input("Otros gastos (COP)", min_value=0, value=15000, step=1000)
     horas = st.number_input("Horas de trabajo", min_value=1, value=4, step=1)
     valor_hora = st.number_input("Valor hora de trabajo (COP)", min_value=0, value=25000, step=1000)
     margen = st.slider("Margen de ganancia (%)", min_value=10, max_value=100, value=30)
-   
-    costo_total = total_carne + total_acomp + total_cond + total_util + transporte + otros
-    costo_por_persona = costo_total / personas
-    precio_venta = costo_por_persona * (1 + margen / 100)
-    ganancia_total = (precio_venta - costo_por_persona) * personas
-
+    costo_total = total_carne + total_acomp + total_cond + total_util + transporte + otros + (horas * valor_hora)
+    precio_evento = costo_total * (1 + margen / 100)
+    ganancia = precio_evento - costo_total
     st.divider()
     col1, col2, col3 = st.columns(3)
     col1.metric("Costo total", f"${costo_total:,.0f}")
     col2.metric("Precio sugerido", f"${precio_evento:,.0f}")
+    col3.metric("Tu ganancia", f"${ganancia:,.0f}")
 
 elif opcion == "Mis recetas guardadas":
     st.header("📋 Mis recetas")
@@ -330,7 +292,6 @@ elif opcion == "Mis recetas guardadas":
 elif opcion == "🌮 Calculadora de Tacos":
     st.header("🌮 Tacos de Birria")
     st.caption("Calcula el costo y precio de tus tacos")
-
     st.subheader("🥩 Carnes")
     carnes_taco = {}
     total_carnes_taco = 0
@@ -349,7 +310,6 @@ elif opcion == "🌮 Calculadora de Tacos":
             total_carnes_taco += costo
     if total_carnes_taco > 0:
         st.info(f"💰 Total carnes: ${total_carnes_taco:,.0f}")
-
     st.subheader("🥬 Legumbres y frescos")
     legumbres_taco = {}
     total_legumbres = 0
@@ -368,7 +328,6 @@ elif opcion == "🌮 Calculadora de Tacos":
             total_legumbres += costo
     if total_legumbres > 0:
         st.info(f"💰 Total legumbres: ${total_legumbres:,.0f}")
-
     st.subheader("🧂 Especias")
     especias_taco = {}
     total_especias = 0
@@ -387,7 +346,6 @@ elif opcion == "🌮 Calculadora de Tacos":
             total_especias += costo
     if total_especias > 0:
         st.info(f"💰 Total especias: ${total_especias:,.0f}")
-
     st.subheader("🧀 Otros ingredientes")
     otros_taco = {}
     total_otros_taco = 0
@@ -411,20 +369,17 @@ elif opcion == "🌮 Calculadora de Tacos":
             total_otros_taco += costo
     if total_otros_taco > 0:
         st.info(f"💰 Total otros: ${total_otros_taco:,.0f}")
-
     st.subheader("⚙️ Logística")
     gas = st.number_input("Gas (COP)", min_value=0, value=10000, step=1000)
     transporte_taco = st.number_input("Transporte (COP)", min_value=0, value=20000, step=1000)
     tacos_por_porcion = st.selectbox("Tacos por porción", [2, 3])
     total_tacos = st.number_input("Total de tacos a preparar", min_value=1, value=30, step=1)
     margen_taco = st.slider("Margen de ganancia (%)", min_value=10, max_value=100, value=40)
-
     costo_total_taco = total_carnes_taco + total_legumbres + total_especias + total_otros_taco + gas + transporte_taco
     porciones = total_tacos / tacos_por_porcion
     costo_por_porcion = costo_total_taco / porciones if porciones > 0 else 0
     precio_porcion = costo_por_porcion * (1 + margen_taco / 100)
     ganancia_taco = (precio_porcion - costo_por_porcion) * porciones
-
     st.divider()
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Costo total", f"${costo_total_taco:,.0f}")
@@ -434,9 +389,7 @@ elif opcion == "🌮 Calculadora de Tacos":
 
 elif opcion == "📅 Historial de eventos":
     st.header("📅 Historial de eventos")
-
     historial = cargar_historial()
-
     st.subheader("➕ Registrar nuevo evento")
     col1, col2 = st.columns(2)
     with col1:
@@ -445,7 +398,6 @@ elif opcion == "📅 Historial de eventos":
     with col2:
         descripcion = st.text_input("Descripción (opcional)")
         personas_evento = st.number_input("Personas atendidas", min_value=1, value=8, step=1)
-
     col1, col2, col3 = st.columns(3)
     with col1:
         ingresos = st.number_input("Ingresos totales (COP)", min_value=0, value=0, step=1000)
@@ -454,26 +406,18 @@ elif opcion == "📅 Historial de eventos":
     with col3:
         ganancia_evento = ingresos - costos
         st.metric("Ganancia", f"${ganancia_evento:,.0f}")
-
     if st.button("Registrar evento"):
         if ingresos > 0:
             historial.append({
-                "tipo": tipo_evento,
-                "fecha": str(fecha),
-                "descripcion": descripcion,
-                "personas": personas_evento,
-                "ingresos": ingresos,
-                "costos": costos,
-                "ganancia": ganancia_evento
+                "tipo": tipo_evento, "fecha": str(fecha), "descripcion": descripcion,
+                "personas": personas_evento, "ingresos": ingresos, "costos": costos, "ganancia": ganancia_evento
             })
             guardar_historial(historial)
             st.success("✓ Evento registrado")
         else:
             st.warning("Ingresa los ingresos del evento")
-
     st.divider()
     st.subheader("📋 Eventos registrados")
-
     if len(historial) == 0:
         st.info("No tienes eventos registrados todavía")
     else:
@@ -481,13 +425,11 @@ elif opcion == "📅 Historial de eventos":
         total_costos = sum(e["costos"] for e in historial)
         total_ganancia = sum(e["ganancia"] for e in historial)
         total_personas = sum(e["personas"] for e in historial)
-
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Total ingresos", f"${total_ingresos:,.0f}")
         col2.metric("Total costos", f"${total_costos:,.0f}")
         col3.metric("Total ganancia", f"${total_ganancia:,.0f}")
         col4.metric("Personas atendidas", total_personas)
-
         st.divider()
         for i, evento in enumerate(reversed(historial)):
             with st.expander(f"📌 {evento['fecha']} — {evento['tipo']} — ${evento['ganancia']:,.0f}"):
@@ -506,28 +448,19 @@ elif opcion == "📅 Historial de eventos":
 elif opcion == "📄 Generar presupuesto PDF":
     st.header("📄 Generar presupuesto")
     st.caption("Crea un presupuesto profesional para tu cliente")
-
     col1, col2 = st.columns(2)
     with col1:
         nombre_cliente = st.text_input("Nombre del cliente")
-        telefono_cliente = st.text_input("Teléfono del cliente")
-        correo_cliente = st.text_input("Correo electrónico del cliente")
+        tel = st.text_input("Teléfono del cliente", key="tel_cliente")
         fecha_evento = st.date_input("Fecha del evento")
     with col2:
         tipo_servicio = st.selectbox("Tipo de servicio", [
-            "Asado al barril",
-            "Tacos de birria",
-            "Asado al barril + Tacos",
-            "Evento completo"
+            "Asado al barril", "Tacos de birria", "Asado al barril + Tacos", "Evento completo"
         ])
         personas_presupuesto = st.number_input("Número de personas", min_value=1, value=10, step=1)
         lugar_evento = st.text_input("Lugar del evento")
-
     st.subheader("💰 Detalles del presupuesto")
-    
-    st.write("**Servicios incluidos:**")
     items = []
-    
     agregar_item = st.checkbox("Agregar item personalizado")
     if agregar_item:
         col1, col2, col3 = st.columns(3)
@@ -539,98 +472,45 @@ elif opcion == "📄 Generar presupuesto PDF":
             item_precio = st.number_input("Precio unitario COP", min_value=0, value=10000, step=1000)
         if item_nombre:
             items.append({"nombre": item_nombre, "cantidad": item_cantidad, "precio": item_precio})
-
     costo_base = st.number_input("Costo base del servicio (COP)", min_value=0, value=200000, step=10000)
     descuento = st.slider("Descuento (%)", min_value=0, max_value=30, value=0)
     nota_cliente = st.text_area("Nota para el cliente (opcional)")
-
-if st.button("✍️ Corregir texto con IA"):
-    if nota_cliente.strip():
-        with st.spinner("Corrigiendo..."):
-            respuesta = cliente.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Eres un corrector ortográfico. Corrige tildes, puntuación y ortografía del texto que te den. Devuelve SOLO el texto corregido, sin explicaciones ni comentarios."
-                    },
-                    {
-                        "role": "user",
-                        "content": nota_cliente
-                    }
-                ]
-            )
-            nota_cliente = respuesta.choices[0].message.content
-            st.success("✓ Texto corregido")
-            st.write(nota_cliente)
-    else:
-        st.warning("Escribe algo primero")
-
     subtotal = costo_base + sum(i["cantidad"] * i["precio"] for i in items)
     descuento_valor = subtotal * (descuento / 100)
     total = subtotal - descuento_valor
-
     st.divider()
     col1, col2, col3 = st.columns(3)
     col1.metric("Subtotal", f"${subtotal:,.0f}")
     col2.metric("Descuento", f"${descuento_valor:,.0f}")
     col3.metric("Total", f"${total:,.0f}")
-
     if st.button("📄 Generar PDF"):
         if not nombre_cliente:
             st.warning("Escribe el nombre del cliente")
         else:
+            tel = st.session_state.get("tel_cliente") or ""
+            st.write(f"tel en session: '{tel}'")
             buffer = io.BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=letter,
-                                   rightMargin=inch*0.75, leftMargin=inch*0.75,
-                                   topMargin=inch*0.75, bottomMargin=inch*0.75)
-
+                                    rightMargin=inch*0.75, leftMargin=inch*0.75,
+                                    topMargin=inch*0.75, bottomMargin=inch*0.75)
             styles = getSampleStyleSheet()
             elementos = []
-
-            estilo_titulo = ParagraphStyle(
-                'titulo',
-                parent=styles['Heading1'],
-                fontSize=24,
-                textColor=colors.HexColor('#FF6B00'),
-                spaceAfter=6,
-                alignment=1
-            )
-            estilo_subtitulo = ParagraphStyle(
-                'subtitulo',
-                parent=styles['Normal'],
-                fontSize=11,
-                textColor=colors.HexColor('#666666'),
-                spaceAfter=4,
-                alignment=1
-            )
-            estilo_normal = ParagraphStyle(
-                'normal',
-                parent=styles['Normal'],
-                fontSize=10,
-                spaceAfter=4
-            )
-            estilo_bold = ParagraphStyle(
-                'bold',
-                parent=styles['Normal'],
-                fontSize=10,
-                fontName='Helvetica-Bold',
-                spaceAfter=4
-            )
-
+            estilo_titulo = ParagraphStyle('titulo', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#FF6B00'), spaceAfter=6, alignment=1)
+            estilo_subtitulo = ParagraphStyle('subtitulo', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor('#666666'), spaceAfter=4, alignment=1)
+            estilo_normal = ParagraphStyle('normal', parent=styles['Normal'], fontSize=10, spaceAfter=4)
+            estilo_bold = ParagraphStyle('bold', parent=styles['Normal'], fontSize=10, fontName='Helvetica-Bold', spaceAfter=4)
             try:
                 elementos.append(RLImage("logo.png", width=1.5*inch, height=1.5*inch))
             except:
                 pass
-
             elementos.append(Paragraph("BARRIL AND GRILL", estilo_titulo))
             elementos.append(Paragraph("Marinados · Ahumados · Calidad", estilo_subtitulo))
             elementos.append(Spacer(1, 0.2*inch))
-
             datos_empresa = [
-                ["📞 WhatsApp:", "3245872010"],
-                ["📍 Ciudad:", "EL RETIRO"],
-                ["📅 Fecha presupuesto:", str(fecha_evento)],
+                ["WhatsApp:", "3245872010"],
+                ["Correo:", "jdavidquinteroh@gmail.com"],
+                ["Ciudad:", "El Retiro"],
+                ["Fecha presupuesto:", str(fecha_evento)],
             ]
             tabla_empresa = Table(datos_empresa, colWidths=[2*inch, 4*inch])
             tabla_empresa.setStyle(TableStyle([
@@ -640,15 +520,13 @@ if st.button("✍️ Corregir texto con IA"):
             ]))
             elementos.append(tabla_empresa)
             elementos.append(Spacer(1, 0.2*inch))
-
             elementos.append(Paragraph("DATOS DEL CLIENTE", ParagraphStyle('sec', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#FF6B00'))))
-            
             datos_cliente = [
                 ["Cliente:", nombre_cliente],
-                ["Teléfono:", telefono_cliente],
+                ["Tel:", tel],
                 ["Fecha del evento:", str(fecha_evento)],
                 ["Lugar:", lugar_evento],
-                ["Número de personas:", str(personas_presupuesto)],
+                ["Numero de personas:", str(personas_presupuesto)],
                 ["Servicio:", tipo_servicio],
             ]
             tabla_cliente = Table(datos_cliente, colWidths=[2*inch, 4*inch])
@@ -662,10 +540,8 @@ if st.button("✍️ Corregir texto con IA"):
             ]))
             elementos.append(tabla_cliente)
             elementos.append(Spacer(1, 0.2*inch))
-
             elementos.append(Paragraph("DETALLE DEL PRESUPUESTO", ParagraphStyle('sec', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#FF6B00'))))
-
-            datos_tabla = [["Descripción", "Cantidad", "Precio unit.", "Total"]]
+            datos_tabla = [["Descripcion", "Cantidad", "Precio unit.", "Total"]]
             datos_tabla.append([tipo_servicio, "1", f"${costo_base:,.0f}", f"${costo_base:,.0f}"])
             for item in items:
                 total_item = item['cantidad'] * item['precio']
@@ -674,7 +550,6 @@ if st.button("✍️ Corregir texto con IA"):
             if descuento > 0:
                 datos_tabla.append(["", "", f"Descuento ({descuento}%):", f"-${descuento_valor:,.0f}"])
             datos_tabla.append(["", "", "TOTAL:", f"${total:,.0f}"])
-
             tabla_presupuesto = Table(datos_tabla, colWidths=[3*inch, 1*inch, 1.5*inch, 1.5*inch])
             tabla_presupuesto.setStyle(TableStyle([
                 ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF6B00')),
@@ -690,54 +565,55 @@ if st.button("✍️ Corregir texto con IA"):
             ]))
             elementos.append(tabla_presupuesto)
             elementos.append(Spacer(1, 0.2*inch))
-
             if nota_cliente:
                 elementos.append(Paragraph("NOTAS:", estilo_bold))
                 elementos.append(Paragraph(nota_cliente, estilo_normal))
                 elementos.append(Spacer(1, 0.1*inch))
-
             elementos.append(Spacer(1, 0.3*inch))
-            elementos.append(Paragraph("¡Gracias por confiar en Barril And Grill!", ParagraphStyle('gracias', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor('#FF6B00'), alignment=1)))
+            elementos.append(Paragraph("Gracias por confiar en Barril And Grill!", ParagraphStyle('gracias', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor('#FF6B00'), alignment=1)))
             elementos.append(Paragraph("Sabor Real · Fuego Lento · Marinados · Ahumados · Calidad", ParagraphStyle('slogan', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#888888'), alignment=1)))
-
             doc.build(elementos)
             buffer.seek(0)
-
             st.success("✓ PDF generado exitosamente")
             st.download_button(
-                label="⬇️ Descargar presupuesto PDF",
+                label="Descargar presupuesto PDF",
                 data=buffer,
                 file_name=f"presupuesto_{nombre_cliente}_{fecha_evento}.pdf",
                 mime="application/pdf"
             )
-elif opcion == "Asesoría con IA":
-    st.header("🤖 Asesoría con IA")
-    st.caption("Pregúntale a la IA sobre precios, estrategias y consejos para tu negocio")
+            if tel:
+                st.write("teléfono detectado")
+                st.write(tel)
+                numero_limpio = tel.replace(" ", "").replace("-", "").replace("+", "")
+                if not numero_limpio.startswith("57"):
+                    numero_limpio = "57" + numero_limpio
+                mensaje = f"Hola {nombre_cliente}, te comparto el presupuesto de Barril And Grill para tu evento del {fecha_evento}. Servicio: {tipo_servicio} para {personas_presupuesto} personas. Total: ${total:,.0f} COP. Quedamos atentos!"
+                mensaje_codificado = mensaje.replace(" ", "%20").replace("&", "%26").replace("!", "%21").replace(":", "%3A")
+                link_whatsapp = f"https://wa.me/{numero_limpio}?text={mensaje_codificado}"
+                st.success(f"[📱 Enviar por WhatsApp]({link_whatsapp})")
 
+elif opcion == "Asesoría con IA":
+    st.header("Asesoria con IA")
+    st.caption("Preguntale a la IA sobre precios, estrategias y consejos para tu negocio")
     if "historial_asados" not in st.session_state:
         st.session_state.historial_asados = []
-
     for mensaje in st.session_state.historial_asados:
         if mensaje["role"] == "user":
             st.chat_message("user").write(mensaje["content"])
         else:
             st.chat_message("assistant").write(mensaje["content"])
-
-    pregunta = st.chat_input("¿Qué quieres preguntarle?")
+    pregunta = st.chat_input("Que quieres preguntarle?")
     if pregunta:
         st.session_state.historial_asados.append({"role": "user", "content": pregunta})
         st.chat_message("user").write(pregunta)
-
         with st.spinner("Consultando..."):
             mensajes = [
-                {"role": "system", "content": "Eres un experto en emprendimientos de comida colombiana, especialmente asados al barril y tacos. Das consejos prácticos sobre precios, costos, marketing y estrategias de negocio. Usas pesos colombianos (COP) y conoces el mercado colombiano."}
+                {"role": "system", "content": "Eres un experto en emprendimientos de comida colombiana, especialmente asados al barril y tacos. Das consejos practicos sobre precios, costos, marketing y estrategias de negocio. Usas pesos colombianos (COP) y conoces el mercado colombiano."}
             ] + st.session_state.historial_asados
-
             respuesta = cliente.chat.completions.create(
                 model="llama-3.1-8b-instant",
                 messages=mensajes
             )
-
             respuesta_texto = respuesta.choices[0].message.content
             st.session_state.historial_asados.append({"role": "assistant", "content": respuesta_texto})
             st.chat_message("assistant").write(respuesta_texto)
