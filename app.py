@@ -595,35 +595,81 @@ elif opcion == "📄 Generar presupuesto PDF":
 
 elif opcion == "🧾 Generar factura PDF":
     st.header("🧾 Generar factura")
-    st.caption("Factura para entregar al cliente después del evento")
+    st.caption("Factura detallada para entregar al cliente después del evento")
 
     col1, col2 = st.columns(2)
     with col1:
         numero_factura = st.text_input("Número de factura", value="001")
-        nombre_cliente_f = st.text_input("Nombre del cliente")
+        nombre_cliente_f = st.text_input("Nombre del cliente", key="nombre_f")
         telefono_cliente_f = st.text_input("Teléfono del cliente", key="tel_factura")
     with col2:
         fecha_factura = st.date_input("Fecha de la factura")
         lugar_factura = st.text_input("Lugar del evento")
         personas_factura = st.number_input("Número de personas", min_value=1, value=10, step=1)
 
-    st.subheader("🛍️ Servicios prestados")
-    servicios = []
-    for i in range(1, 6):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            servicio = st.text_input(f"Servicio {i}", key=f"serv_{i}")
-        with col2:
-            cantidad_s = st.number_input(f"Cantidad", min_value=0, value=0, step=1, key=f"cant_s_{i}")
-        with col3:
-            precio_s = st.number_input(f"Precio COP", min_value=0, value=0, step=1000, key=f"precio_s_{i}")
-        if servicio and cantidad_s > 0:
-            servicios.append({"servicio": servicio, "cantidad": cantidad_s, "precio": precio_s})
+    st.subheader("🥩 Cortes de carne")
+    carnes_factura = {}
+    total_carnes_f = 0
+    for corte in CORTES:
+        incluir = st.checkbox(corte, key=f"fac_carne_{corte}")
+        if incluir:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                cantidad = st.number_input("Cantidad", min_value=0.1, value=1.0, step=0.1, key=f"fac_cant_{corte}")
+            with col2:
+                unidad = st.selectbox("Unidad", ["kg", "gramos", "unidad"], key=f"fac_uni_{corte}")
+            with col3:
+                precio = st.number_input("Precio COP", min_value=0, value=20000, step=1000, key=f"fac_precio_{corte}")
+            costo = calcular_costo(cantidad, unidad, precio)
+            carnes_factura[corte] = {"cantidad": cantidad, "unidad": unidad, "precio": precio, "costo": costo}
+            total_carnes_f += costo
+    if total_carnes_f > 0:
+        st.info(f"💰 Total carnes: ${total_carnes_f:,.0f}")
+
+    st.subheader("🥗 Acompañantes")
+    acomp_factura = {}
+    total_acomp_f = 0
+    for acomp in ACOMPANANTES:
+        incluir = st.checkbox(acomp, key=f"fac_acomp_{acomp}")
+        if incluir:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                cantidad = st.number_input("Cantidad", min_value=0.1, value=1.0, step=0.1, key=f"fac_acomp_cant_{acomp}")
+            with col2:
+                unidad = st.selectbox("Unidad", ["unidad", "kg", "gramos"], key=f"fac_acomp_uni_{acomp}")
+            with col3:
+                precio = st.number_input("Precio COP", min_value=0, value=5000, step=500, key=f"fac_acomp_precio_{acomp}")
+            costo = calcular_costo(cantidad, unidad, precio)
+            acomp_factura[acomp] = {"cantidad": cantidad, "unidad": unidad, "precio": precio, "costo": costo}
+            total_acomp_f += costo
+    if total_acomp_f > 0:
+        st.info(f"💰 Total acompañantes: ${total_acomp_f:,.0f}")
+
+    st.subheader("🧴 Utensilios")
+    util_factura = {}
+    total_util_f = 0
+    for util in UTENSILIOS:
+        incluir = st.checkbox(util, key=f"fac_util_{util}")
+        if incluir:
+            col1, col2 = st.columns(2)
+            with col1:
+                cantidad = st.number_input("Cantidad", min_value=1, value=1, step=1, key=f"fac_util_cant_{util}")
+            with col2:
+                precio = st.number_input("Precio COP", min_value=0, value=500, step=100, key=f"fac_util_precio_{util}")
+            costo = cantidad * precio
+            util_factura[util] = {"cantidad": cantidad, "precio": precio, "costo": costo}
+            total_util_f += costo
+    if total_util_f > 0:
+        st.info(f"💰 Total utensilios: ${total_util_f:,.0f}")
+
+    st.subheader("🚗 Logística")
+    transporte_f = st.number_input("Transporte (COP)", min_value=0, value=20000, step=1000, key="trans_f")
+    otros_f = st.number_input("Otros (COP)", min_value=0, value=0, step=1000, key="otros_f")
 
     descuento_f = st.slider("Descuento (%)", min_value=0, max_value=30, value=0, key="desc_factura")
     nota_factura = st.text_area("Nota adicional (opcional)", key="nota_factura")
 
-    subtotal_f = sum(s["cantidad"] * s["precio"] for s in servicios)
+    subtotal_f = total_carnes_f + total_acomp_f + total_util_f + transporte_f + otros_f
     descuento_val_f = subtotal_f * (descuento_f / 100)
     total_f = subtotal_f - descuento_val_f
 
@@ -636,8 +682,8 @@ elif opcion == "🧾 Generar factura PDF":
     if st.button("🧾 Generar factura"):
         if not nombre_cliente_f:
             st.warning("Escribe el nombre del cliente")
-        elif len(servicios) == 0:
-            st.warning("Agrega al menos un servicio")
+        elif subtotal_f == 0:
+            st.warning("Agrega al menos un producto")
         else:
             buffer = io.BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=letter,
@@ -646,10 +692,10 @@ elif opcion == "🧾 Generar factura PDF":
             styles = getSampleStyleSheet()
             elementos = []
 
-            estilo_titulo = ParagraphStyle('titulo', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#FF6B00'), spaceAfter=6, alignment=1)
-            estilo_subtitulo = ParagraphStyle('subtitulo', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor('#666666'), spaceAfter=4, alignment=1)
-            estilo_normal = ParagraphStyle('normal', parent=styles['Normal'], fontSize=10, spaceAfter=4)
-            estilo_bold = ParagraphStyle('bold', parent=styles['Normal'], fontSize=10, fontName='Helvetica-Bold', spaceAfter=4)
+            estilo_titulo = ParagraphStyle('titulo2', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#FF6B00'), spaceAfter=6, alignment=1)
+            estilo_subtitulo = ParagraphStyle('subtitulo2', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor('#666666'), spaceAfter=4, alignment=1)
+            estilo_normal = ParagraphStyle('normal2', parent=styles['Normal'], fontSize=10, spaceAfter=4)
+            estilo_bold = ParagraphStyle('bold2', parent=styles['Normal'], fontSize=10, fontName='Helvetica-Bold', spaceAfter=4)
 
             try:
                 elementos.append(RLImage("logo.png", width=1.5*inch, height=1.5*inch))
@@ -676,12 +722,12 @@ elif opcion == "🧾 Generar factura PDF":
             elementos.append(tabla_empresa)
             elementos.append(Spacer(1, 0.2*inch))
 
-            elementos.append(Paragraph("DATOS DEL CLIENTE", ParagraphStyle('sec', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#FF6B00'))))
+            elementos.append(Paragraph("DATOS DEL CLIENTE", ParagraphStyle('sec2', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#FF6B00'))))
             datos_cliente = [
                 ["Cliente:", nombre_cliente_f],
                 ["Telefono:", telefono_cliente_f],
-                ["Lugar del evento:", lugar_factura],
-                ["Numero de personas:", str(personas_factura)],
+                ["Lugar:", lugar_factura],
+                ["Personas:", str(personas_factura)],
             ]
             tabla_cliente = Table(datos_cliente, colWidths=[2*inch, 4*inch])
             tabla_cliente.setStyle(TableStyle([
@@ -694,30 +740,42 @@ elif opcion == "🧾 Generar factura PDF":
             elementos.append(tabla_cliente)
             elementos.append(Spacer(1, 0.2*inch))
 
-            elementos.append(Paragraph("SERVICIOS PRESTADOS", ParagraphStyle('sec', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#FF6B00'))))
-            datos_tabla = [["Servicio", "Cantidad", "Precio unit.", "Total"]]
-            for s in servicios:
-                total_s = s['cantidad'] * s['precio']
-                datos_tabla.append([s['servicio'], str(s['cantidad']), f"${s['precio']:,.0f}", f"${total_s:,.0f}"])
-            datos_tabla.append(["", "", "Subtotal:", f"${subtotal_f:,.0f}"])
-            if descuento_f > 0:
-                datos_tabla.append(["", "", f"Descuento ({descuento_f}%):", f"-${descuento_val_f:,.0f}"])
-            datos_tabla.append(["", "", "TOTAL:", f"${total_f:,.0f}"])
+            elementos.append(Paragraph("DETALLE DE PRODUCTOS Y SERVICIOS", ParagraphStyle('sec3', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#FF6B00'))))
+            datos_tabla = [["Descripcion", "Cantidad", "Unidad", "Precio unit.", "Total"]]
 
-            tabla_servicios = Table(datos_tabla, colWidths=[3*inch, 1*inch, 1.5*inch, 1.5*inch])
-            tabla_servicios.setStyle(TableStyle([
+            for corte, info in carnes_factura.items():
+                datos_tabla.append([corte, str(info['cantidad']), info['unidad'], f"${info['precio']:,.0f}", f"${info['costo']:,.0f}"])
+
+            for acomp, info in acomp_factura.items():
+                datos_tabla.append([acomp, str(info['cantidad']), info['unidad'], f"${info['precio']:,.0f}", f"${info['costo']:,.0f}"])
+
+            for util, info in util_factura.items():
+                datos_tabla.append([util, str(info['cantidad']), "unidad", f"${info['precio']:,.0f}", f"${info['costo']:,.0f}"])
+
+            if transporte_f > 0:
+                datos_tabla.append(["Transporte", "1", "-", f"${transporte_f:,.0f}", f"${transporte_f:,.0f}"])
+            if otros_f > 0:
+                datos_tabla.append(["Otros", "1", "-", f"${otros_f:,.0f}", f"${otros_f:,.0f}"])
+
+            datos_tabla.append(["", "", "", "Subtotal:", f"${subtotal_f:,.0f}"])
+            if descuento_f > 0:
+                datos_tabla.append(["", "", "", f"Descuento ({descuento_f}%):", f"-${descuento_val_f:,.0f}"])
+            datos_tabla.append(["", "", "", "TOTAL:", f"${total_f:,.0f}"])
+
+            tabla_prod = Table(datos_tabla, colWidths=[2.5*inch, 0.8*inch, 0.8*inch, 1.2*inch, 1.2*inch])
+            tabla_prod.setStyle(TableStyle([
                 ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF6B00')),
                 ('TEXTCOLOR', (0,0), (-1,0), colors.white),
                 ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0,0), (-1,-1), 10),
+                ('FONTSIZE', (0,0), (-1,-1), 9),
                 ('GRID', (0,0), (-1,-2), 0.5, colors.HexColor('#DDDDDD')),
                 ('ROWBACKGROUNDS', (0,1), (-1,-3), [colors.white, colors.HexColor('#F5F0E8')]),
                 ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
-                ('TEXTCOLOR', (2,-1), (-1,-1), colors.HexColor('#FF6B00')),
+                ('TEXTCOLOR', (3,-1), (-1,-1), colors.HexColor('#FF6B00')),
                 ('FONTSIZE', (0,-1), (-1,-1), 12),
-                ('PADDING', (0,0), (-1,-1), 8),
+                ('PADDING', (0,0), (-1,-1), 6),
             ]))
-            elementos.append(tabla_servicios)
+            elementos.append(tabla_prod)
             elementos.append(Spacer(1, 0.2*inch))
 
             if nota_factura:
@@ -726,8 +784,8 @@ elif opcion == "🧾 Generar factura PDF":
                 elementos.append(Spacer(1, 0.1*inch))
 
             elementos.append(Spacer(1, 0.3*inch))
-            elementos.append(Paragraph("Gracias por confiar en Barril And Grill!", ParagraphStyle('gracias', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor('#FF6B00'), alignment=1)))
-            elementos.append(Paragraph("Sabor Real · Fuego Lento · Marinados · Ahumados · Calidad", ParagraphStyle('slogan', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#888888'), alignment=1)))
+            elementos.append(Paragraph("Gracias por confiar en Barril And Grill!", ParagraphStyle('gracias2', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor('#FF6B00'), alignment=1)))
+            elementos.append(Paragraph("Sabor Real · Fuego Lento · Marinados · Ahumados · Calidad", ParagraphStyle('slogan2', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#888888'), alignment=1)))
 
             doc.build(elementos)
             buffer.seek(0)
