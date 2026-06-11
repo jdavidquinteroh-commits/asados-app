@@ -28,9 +28,8 @@ CORTES = [
     "Punta de anca de res",
     "Chorizo",
     "Costillas de cerdo",
-    "Pollo",
-    "Falda de res",
-    "Pecho de res"
+    "Pollo"
+
 ]
 
 ACOMPANANTES = [
@@ -60,7 +59,8 @@ UTENSILIOS = [
     "Bolsas",
     "Guantes desechables",
     "Carbon",
-    "servilletas"
+    "Servilletas",
+    "Aluminio"
 ]
 
 def calcular_costo(cantidad, unidad, precio_unit):
@@ -202,6 +202,7 @@ opcion = st.sidebar.selectbox("¿Qué quieres hacer?", [
     "🌮 Calculadora de Tacos",
     "📅 Historial de eventos",
     "📄 Generar presupuesto PDF",
+    "🧾 Generar factura PDF",
     "Asesoría con IA"
 ])
 
@@ -591,6 +592,163 @@ elif opcion == "📄 Generar presupuesto PDF":
                 mensaje_codificado = mensaje.replace(" ", "%20").replace("&", "%26").replace("!", "%21").replace(":", "%3A")
                 link_whatsapp = f"https://wa.me/{numero_limpio}?text={mensaje_codificado}"
                 st.success(f"[📱 Enviar por WhatsApp]({link_whatsapp})")
+
+elif opcion == "🧾 Generar factura PDF":
+    st.header("🧾 Generar factura")
+    st.caption("Factura para entregar al cliente después del evento")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        numero_factura = st.text_input("Número de factura", value="001")
+        nombre_cliente_f = st.text_input("Nombre del cliente")
+        telefono_cliente_f = st.text_input("Teléfono del cliente", key="tel_factura")
+    with col2:
+        fecha_factura = st.date_input("Fecha de la factura")
+        lugar_factura = st.text_input("Lugar del evento")
+        personas_factura = st.number_input("Número de personas", min_value=1, value=10, step=1)
+
+    st.subheader("🛍️ Servicios prestados")
+    servicios = []
+    for i in range(1, 6):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            servicio = st.text_input(f"Servicio {i}", key=f"serv_{i}")
+        with col2:
+            cantidad_s = st.number_input(f"Cantidad", min_value=0, value=0, step=1, key=f"cant_s_{i}")
+        with col3:
+            precio_s = st.number_input(f"Precio COP", min_value=0, value=0, step=1000, key=f"precio_s_{i}")
+        if servicio and cantidad_s > 0:
+            servicios.append({"servicio": servicio, "cantidad": cantidad_s, "precio": precio_s})
+
+    descuento_f = st.slider("Descuento (%)", min_value=0, max_value=30, value=0, key="desc_factura")
+    nota_factura = st.text_area("Nota adicional (opcional)", key="nota_factura")
+
+    subtotal_f = sum(s["cantidad"] * s["precio"] for s in servicios)
+    descuento_val_f = subtotal_f * (descuento_f / 100)
+    total_f = subtotal_f - descuento_val_f
+
+    st.divider()
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Subtotal", f"${subtotal_f:,.0f}")
+    col2.metric("Descuento", f"${descuento_val_f:,.0f}")
+    col3.metric("Total", f"${total_f:,.0f}")
+
+    if st.button("🧾 Generar factura"):
+        if not nombre_cliente_f:
+            st.warning("Escribe el nombre del cliente")
+        elif len(servicios) == 0:
+            st.warning("Agrega al menos un servicio")
+        else:
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=letter,
+                                    rightMargin=inch*0.75, leftMargin=inch*0.75,
+                                    topMargin=inch*0.75, bottomMargin=inch*0.75)
+            styles = getSampleStyleSheet()
+            elementos = []
+
+            estilo_titulo = ParagraphStyle('titulo', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor('#FF6B00'), spaceAfter=6, alignment=1)
+            estilo_subtitulo = ParagraphStyle('subtitulo', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor('#666666'), spaceAfter=4, alignment=1)
+            estilo_normal = ParagraphStyle('normal', parent=styles['Normal'], fontSize=10, spaceAfter=4)
+            estilo_bold = ParagraphStyle('bold', parent=styles['Normal'], fontSize=10, fontName='Helvetica-Bold', spaceAfter=4)
+
+            try:
+                elementos.append(RLImage("logo.png", width=1.5*inch, height=1.5*inch))
+            except:
+                pass
+
+            elementos.append(Paragraph("BARRIL AND GRILL", estilo_titulo))
+            elementos.append(Paragraph("Marinados · Ahumados · Calidad", estilo_subtitulo))
+            elementos.append(Spacer(1, 0.2*inch))
+
+            datos_empresa = [
+                ["WhatsApp:", "3245872010"],
+                ["Correo:", "jdavidquinteroh@gmail.com"],
+                ["Ciudad:", "El Retiro"],
+                ["No. Factura:", numero_factura],
+                ["Fecha:", str(fecha_factura)],
+            ]
+            tabla_empresa = Table(datos_empresa, colWidths=[2*inch, 4*inch])
+            tabla_empresa.setStyle(TableStyle([
+                ('FONTSIZE', (0,0), (-1,-1), 9),
+                ('TEXTCOLOR', (0,0), (0,-1), colors.HexColor('#FF6B00')),
+                ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+            ]))
+            elementos.append(tabla_empresa)
+            elementos.append(Spacer(1, 0.2*inch))
+
+            elementos.append(Paragraph("DATOS DEL CLIENTE", ParagraphStyle('sec', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#FF6B00'))))
+            datos_cliente = [
+                ["Cliente:", nombre_cliente_f],
+                ["Telefono:", telefono_cliente_f],
+                ["Lugar del evento:", lugar_factura],
+                ["Numero de personas:", str(personas_factura)],
+            ]
+            tabla_cliente = Table(datos_cliente, colWidths=[2*inch, 4*inch])
+            tabla_cliente.setStyle(TableStyle([
+                ('FONTSIZE', (0,0), (-1,-1), 10),
+                ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+                ('ROWBACKGROUNDS', (0,0), (-1,-1), [colors.HexColor('#F5F0E8'), colors.white]),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#DDDDDD')),
+                ('PADDING', (0,0), (-1,-1), 6),
+            ]))
+            elementos.append(tabla_cliente)
+            elementos.append(Spacer(1, 0.2*inch))
+
+            elementos.append(Paragraph("SERVICIOS PRESTADOS", ParagraphStyle('sec', parent=styles['Heading2'], fontSize=13, textColor=colors.HexColor('#FF6B00'))))
+            datos_tabla = [["Servicio", "Cantidad", "Precio unit.", "Total"]]
+            for s in servicios:
+                total_s = s['cantidad'] * s['precio']
+                datos_tabla.append([s['servicio'], str(s['cantidad']), f"${s['precio']:,.0f}", f"${total_s:,.0f}"])
+            datos_tabla.append(["", "", "Subtotal:", f"${subtotal_f:,.0f}"])
+            if descuento_f > 0:
+                datos_tabla.append(["", "", f"Descuento ({descuento_f}%):", f"-${descuento_val_f:,.0f}"])
+            datos_tabla.append(["", "", "TOTAL:", f"${total_f:,.0f}"])
+
+            tabla_servicios = Table(datos_tabla, colWidths=[3*inch, 1*inch, 1.5*inch, 1.5*inch])
+            tabla_servicios.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF6B00')),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0,0), (-1,-1), 10),
+                ('GRID', (0,0), (-1,-2), 0.5, colors.HexColor('#DDDDDD')),
+                ('ROWBACKGROUNDS', (0,1), (-1,-3), [colors.white, colors.HexColor('#F5F0E8')]),
+                ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
+                ('TEXTCOLOR', (2,-1), (-1,-1), colors.HexColor('#FF6B00')),
+                ('FONTSIZE', (0,-1), (-1,-1), 12),
+                ('PADDING', (0,0), (-1,-1), 8),
+            ]))
+            elementos.append(tabla_servicios)
+            elementos.append(Spacer(1, 0.2*inch))
+
+            if nota_factura:
+                elementos.append(Paragraph("NOTAS:", estilo_bold))
+                elementos.append(Paragraph(nota_factura, estilo_normal))
+                elementos.append(Spacer(1, 0.1*inch))
+
+            elementos.append(Spacer(1, 0.3*inch))
+            elementos.append(Paragraph("Gracias por confiar en Barril And Grill!", ParagraphStyle('gracias', parent=styles['Normal'], fontSize=11, textColor=colors.HexColor('#FF6B00'), alignment=1)))
+            elementos.append(Paragraph("Sabor Real · Fuego Lento · Marinados · Ahumados · Calidad", ParagraphStyle('slogan', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#888888'), alignment=1)))
+
+            doc.build(elementos)
+            buffer.seek(0)
+
+            st.success("✓ Factura generada exitosamente")
+            st.download_button(
+                label="⬇️ Descargar factura PDF",
+                data=buffer,
+                file_name=f"factura_{numero_factura}_{nombre_cliente_f}.pdf",
+                mime="application/pdf"
+            )
+
+            tel_f = st.session_state.get("tel_factura") or ""
+            if tel_f:
+                numero_limpio_f = tel_f.replace(" ", "").replace("-", "").replace("+", "")
+                if not numero_limpio_f.startswith("57"):
+                    numero_limpio_f = "57" + numero_limpio_f
+                mensaje_f = f"Hola {nombre_cliente_f}, te envio la factura No.{numero_factura} de Barril And Grill. Total: ${total_f:,.0f} COP. Gracias por tu preferencia!"
+                mensaje_cod_f = mensaje_f.replace(" ", "%20").replace("&", "%26").replace("!", "%21").replace(":", "%3A")
+                link_wp_f = f"https://wa.me/{numero_limpio_f}?text={mensaje_cod_f}"
+                st.markdown(f'<a href="{link_wp_f}" target="_blank"><button style="background-color:#25D366;color:white;border:none;padding:10px 20px;border-radius:6px;font-size:16px;font-weight:bold;cursor:pointer;width:100%;margin-top:10px;">📱 Enviar factura por WhatsApp</button></a>', unsafe_allow_html=True)
 
 elif opcion == "Asesoría con IA":
     st.header("Asesoria con IA")
